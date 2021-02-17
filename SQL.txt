@@ -1,0 +1,117 @@
+DECLARE
+part_num	varchar2(2);
+part_name	varchar2(20);
+count_p	number default 0;
+current_record	varchar2(120);
+
+CURSOR PART_CURSOR IS
+	SELECT distinct parts.pnum, parts.pname
+	FROM parts, supply, sp
+	WHERE parts.pnum=sp.pnum
+	AND sp.snum=supply.snum
+	AND supply.city=parts.city;
+
+BEGIN
+DBMS_OUTPUT.PUT_LINE('***All Parts Where the City Matches the Supplier City***');
+
+OPEN PART_CURSOR;
+LOOP
+	FETCH PART_CURSOR
+	INTO
+		part_num,
+		part_name;
+	EXIT WHEN PART_CURSOR%NOTFOUND;
+
+current_record:=('Part: '||part_num||' '||part_name);
+DBMS_OUTPUT.PUT_LINE(current_record);
+count_p:=count_p+1;
+
+END LOOP;
+
+DBMS_OUTPUT.PUT_LINE('');
+DBMS_OUTPUT.PUT_LINE('There are '||count_p||' parts');
+
+CLOSE PART_CURSOR;
+END;
+/
+
+
+
+DECLARE
+--CRW_customer
+customer_number		varchar2(5);
+first			varchar2(20);
+last			varchar2(20);
+
+--CRW_ORDER_LINE
+number_ordered		number default 0;
+quoted_price		number default 0;
+
+--CRW_ORDERS
+order_date		varchar2(10);
+order_number		varchar2(5);
+
+--CRW_PART
+part_number		varchar2(5);
+part_description	varchar2(20);
+
+--Derived
+line_price		number default 0;
+tax			number default 0;
+final_amount		number default 0;
+
+CURSOR INVOICE_CURSOR IS
+	SELECT distinct CRW_customer.customer_number, CRW_customer.first, CRW_customer.last, CRW_orders.order_number, CRW_orders.order_date
+	FROM CRW_customer, CRW_orders
+	WHERE CRW_customer.customer_number=CRW_orders.customer_number
+	AND CRW_orders.order_number=12510;
+	--This should be altered depending on what order you want the invoice for or if you want multiple invoices
+
+CURSOR INVOICE_LINE_CURSOR(order_variable varchar2) IS
+	SELECT distinct CRW_part.part_number, CRW_part.part_description, CRW_order_line.quoted_price, CRW_order_line.number_ordered
+	FROM CRW_part, CRW_order_line
+	WHERE CRW_part.part_number=CRW_order_line.part_number
+	AND CRW_order_line.order_number=order_variable;
+
+BEGIN
+DBMS_OUTPUT.PUT_LINE('Sales Invoice');
+
+OPEN INVOICE_CURSOR;
+
+LOOP
+	FETCH INVOICE_CURSOR
+	INTO
+		customer_number,
+		first,
+		last,
+		order_number,
+		order_date;
+	EXIT WHEN INVOICE_CURSOR%NOTFOUND;
+
+	DBMS_OUTPUT.PUT_LINE('Customer: '||customer_number||' '||first||' '||last);
+	DBMS_OUTPUT.PUT_LINE('Order #: '||order_number);
+	DBMS_OUTPUT.PUT_LINE('Order Date: '||order_date);
+	
+	OPEN INVOICE_LINE_CURSOR(order_number);
+	LOOP
+		FETCH INVOICE_LINE_CURSOR
+		INTO
+			part_number,
+			part_description,
+			quoted_price,
+			number_ordered;
+		EXIT WHEN INVOICE_LINE_CURSOR%NOTFOUND;
+		line_price:=line_price+quoted_price*number_ordered;
+		DBMS_OUTPUT.PUT_LINE('Item: '||part_number||' Description: '||part_description||' Price: '||quoted_price||' Quantity: '||number_ordered||' Line Price: '||line_price);
+		final_amount:=final_amount+line_price;
+	END LOOP;
+	tax:=final_amount*0.07;
+	final_amount:=final_amount+tax;
+	DBMS_OUTPUT.PUT_LINE('Tax: '||tax);
+	DBMS_OUTPUT.PUT_LINE('Final Amount Due: '||final_amount);
+	CLOSE INVOICE_LINE_CURSOR;
+
+END LOOP;
+CLOSE INVOICE_CURSOR;
+END;
+/
